@@ -11,32 +11,34 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+// Railway dynamically assigns a PORT, we must listen to it
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// WhatsApp Client Initialization
+// 🚨 RAILWAY CRITICAL UPDATE: Puppeteer Configuration
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
+        // Railway (Docker) needs these exact args to run Chrome successfully
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || null, 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox', 
             '--disable-dev-shm-usage',
             '--disable-accelerated-2d-canvas',
-            '--disable-gpu'
+            '--disable-gpu',
+            '--single-process' // Crucial for memory management on cloud
         ]
     }
 });
 
 let isClientReady = false;
 
-// Socket.io for Real-time Frontend Updates
 io.on('connection', (socket) => {
     console.log('Frontend connected');
     if (isClientReady) {
@@ -72,7 +74,6 @@ client.initialize();
 
 // ==========================================
 // 🚀 API ROUTE 1: DIRECT URL METHOD (GET)
-// Example: http://localhost:3000/api/send?number=919876543210&message=Hi
 // ==========================================
 app.get('/api/send', async (req, res) => {
     try {
@@ -81,7 +82,7 @@ app.get('/api/send', async (req, res) => {
         if (!isClientReady) return res.status(503).json({ success: false, error: 'WhatsApp is not ready. Scan QR first.' });
         if (!number || !message) return res.status(400).json({ success: false, error: 'Provide both ?number= and &message=' });
 
-        // STRICT VALIDATION: Keep only numbers (removes spaces, +, letters, symbols)
+        // STRICT VALIDATION
         const formattedNumber = number.toString().replace(/\D/g, '');
         if (!formattedNumber || formattedNumber.length < 10) {
             return res.status(400).json({ success: false, error: 'Invalid phone number format.' });
@@ -111,7 +112,7 @@ app.post('/api/send-message', async (req, res) => {
         if (!isClientReady) return res.status(503).json({ success: false, error: 'WhatsApp is not ready.' });
         if (!number || !message) return res.status(400).json({ success: false, error: 'Number and message are required.' });
 
-        // STRICT VALIDATION: Keep only numbers (removes spaces, +, letters, symbols)
+        // STRICT VALIDATION
         const formattedNumber = number.toString().replace(/\D/g, '');
         if (!formattedNumber || formattedNumber.length < 10) {
             return res.status(400).json({ success: false, error: 'Invalid phone number format.' });
@@ -131,7 +132,7 @@ app.post('/api/send-message', async (req, res) => {
     }
 });
 
-// Start Server
-server.listen(PORT, () => {
-    console.log(`Server is live at http://localhost:${PORT}`);
+// Important: Railway requires binding to 0.0.0.0
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is live at port ${PORT}`);
 });
