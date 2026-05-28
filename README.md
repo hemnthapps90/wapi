@@ -125,3 +125,98 @@ Delete session folder and restart server.
 
 Hemanth Software
 https://github.com/hemnthapps90
+
+
+
+
+
+## Expose Localhost to Internet Using Ngrok
+
+If your application is running on localhost and you want to access it from anywhere, use Ngrok.
+
+### Install Ngrok
+
+Download and install Ngrok from:
+
+https://ngrok.com/download
+
+### Login to Ngrok
+
+Get your auth token from:
+
+https://dashboard.ngrok.com/get-started/your-authtoken
+
+Run:
+
+```bash
+ngrok config add-authtoken YOUR_AUTH_TOKEN
+```
+
+### Start Your Application
+
+```bash
+node server.js
+```
+
+Example:
+
+```text
+http://localhost:3000
+```
+
+### Create Public URL
+
+Open a new terminal and run:
+
+```bash
+ngrok http 3000
+```
+
+Output:
+
+```text
+Forwarding https://abc123.ngrok-free.app -> http://localhost:3000
+```
+
+Now your local application is accessible worldwide using:
+
+```text
+https://abc123.ngrok-free.app
+```
+
+### Example API URL
+
+Local:
+
+```text
+http://localhost:3000/send-message
+```
+
+Public:
+
+```text
+https://abc123.ngrok-free.app/send-message
+```
+
+### Notes
+
+* Keep Node.js server running.
+* Keep Ngrok running.
+* Free Ngrok URLs change after restart.
+* For permanent URLs use a paid Ngrok plan or deploy on a VPS.
+
+### Check Status
+
+```bash
+curl https://abc123.ngrok-free.app
+```
+
+### Stop Ngrok
+
+Press:
+
+```text
+CTRL + C
+```
+
+in the Ngrok terminal.
