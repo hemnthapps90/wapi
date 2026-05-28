@@ -220,3 +220,83 @@ CTRL + C
 ```
 
 in the Ngrok terminal.
+
+
+## Send Message Using URL
+
+You can directly send WhatsApp messages using URL parameters.
+
+### Example Request
+
+```text
+https://eb9b-2401-4900-8f66-ffe9-a48a-3f96-ac7e-772a.ngrok-free.app/api/send?number=917261016696&message=Hi
+```
+
+### Parameters
+
+| Parameter | Description                       |
+| --------- | --------------------------------- |
+| number    | WhatsApp Number with Country Code |
+| message   | Message Text                      |
+
+### Example
+
+```text
+number=917261016696
+message=Hello World
+```
+
+### Browser Test
+
+Simply open:
+
+```text
+https://your-ngrok-url.ngrok-free.app/api/send?number=917261016696&message=Hello
+```
+
+### Response Example
+
+```json
+{
+  "success": true,
+  "message": "Message sent successfully"
+}
+```
+
+## Using With JavaScript
+
+```javascript
+fetch("https://your-ngrok-url.ngrok-free.app/api/send?number=917261016696&message=Hello")
+.then(res => res.json())
+.then(data => console.log(data));
+```
+
+## Important Notes
+
+* WhatsApp must be connected.
+* QR must be scanned.
+* Server should be running.
+* Ngrok tunnel should be active.
+* Number must include country code.
+
+### Correct Format
+
+```text
+917261016696
+919876543210
+```
+
+### Wrong Format
+
+```text
+7261016696
++917261016696
+```
+
+## Public API Example
+
+```text
+GET /api/send?number=917261016696&message=Hi
+```
+
+This API sends a WhatsApp message directly from the connected WhatsApp session.
