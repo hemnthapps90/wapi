@@ -3,83 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Professional API</title>
+    <title>Simple WhatsApp API</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
 </head>
-<body class="bg-gray-50 text-gray-800 font-sans min-h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 text-gray-800 font-sans min-h-screen flex items-center justify-center p-4">
 
-    <div class="max-w-2xl w-full bg-white rounded-xl shadow-xl overflow-hidden transition-all">
-        <div class="bg-green-600 text-white p-5 text-center flex justify-between items-center">
-            <h1 class="text-2xl font-bold">WhatsApp PRO API</h1>
-            <span id="status-badge" class="px-3 py-1 bg-yellow-500 text-xs font-bold rounded-full">Connecting...</span>
+    <div class="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden transition-all">
+        
+        <div class="bg-green-600 text-white p-5 text-center">
+            <h1 class="text-2xl font-bold">WhatsApp Setup</h1>
+            <p id="status-text" class="text-sm mt-1 opacity-90">Initializing system...</p>
         </div>
 
         <div class="p-6">
-            <div id="qr-container" class="flex flex-col items-center py-10">
-                <p class="text-gray-600 mb-4 font-medium">Open WhatsApp > Linked Devices > Scan QR Code</p>
-                <div class="p-4 bg-white shadow-inner rounded-xl border-2 border-dashed border-gray-300">
-                    <img id="qr-image" src="" class="hidden w-64 h-64 object-contain" />
-                    <div id="qr-spinner" class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto my-24"></div>
+            <div id="qr-container" class="flex flex-col items-center justify-center space-y-4 py-4">
+                <p class="text-gray-600 font-medium text-center">Open WhatsApp > Linked Devices > Scan QR</p>
+                <div class="w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                    <img id="qr-image" src="" alt="QR" class="hidden w-full h-full object-contain p-2" />
+                    <div id="qr-spinner" class="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600"></div>
                 </div>
             </div>
 
-            <div id="app-container" class="hidden">
-                <div class="flex border-b border-gray-200 mb-6 bg-gray-50 rounded-t-lg">
-                    <button id="tab-single" class="flex-1 py-3 text-center text-green-600 border-b-2 border-green-600 font-semibold" onclick="switchTab('single')">Single Msg</button>
-                    <button id="tab-bulk" class="flex-1 py-3 text-center text-gray-500 hover:text-green-600 font-semibold" onclick="switchTab('bulk')">Bulk (Manual)</button>
-                    <button id="tab-file" class="flex-1 py-3 text-center text-gray-500 hover:text-green-600 font-semibold" onclick="switchTab('file')">Bulk (File Upload)</button>
+            <div id="message-container" class="hidden space-y-5">
+                <div class="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span class="font-medium">Device Connected & Ready!</span>
                 </div>
 
-                <form id="singleForm" class="space-y-4">
+                <form id="sendMessageForm" class="space-y-4">
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700">Phone Number</label>
-                        <input type="text" id="s-phone" placeholder="919876543210" required class="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none">
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">WhatsApp Number</label>
+                        <input type="text" id="phone" placeholder="919876543210 (with country code)" required
+                            class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700">Message</label>
-                        <textarea id="s-msg" rows="3" required class="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea>
+                        <label class="block text-sm font-semibold text-gray-700 mb-1">Message</label>
+                        <textarea id="message" rows="4" placeholder="Write your message here..." required
+                            class="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition resize-none"></textarea>
                     </div>
-                    <button type="submit" id="s-btn" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg shadow hover:bg-green-700 transition">Send Message</button>
-                    <div id="s-res" class="hidden text-center text-sm p-3 rounded-lg font-medium"></div>
+                    <button type="submit" id="submit-btn"
+                        class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg shadow transition duration-200">
+                        Send Message
+                    </button>
                 </form>
-
-                <form id="bulkForm" class="space-y-4 hidden">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700">Phone Numbers (Comma/Newline)</label>
-                        <textarea id="b-phones" rows="4" placeholder="919876543210&#10;919876543211" required class="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"></textarea>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700">Message</label>
-                        <textarea id="b-msg" rows="3" required class="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea>
-                    </div>
-                    <button type="submit" id="b-btn" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow hover:bg-blue-700 transition">Start Bulk Sending</button>
-                </form>
-
-                <form id="fileForm" class="space-y-5 hidden">
-                    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
-                        <p class="text-sm text-blue-700 font-medium">Upload CSV or JSON. We automatically detect <b>phone_number</b> and <b>saved_name</b> columns. Use <code class="bg-blue-100 px-1 rounded">{name}</code> in your message to personalize it!</p>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Upload Database File</label>
-                        <input type="file" id="f-file" accept=".csv, .json" required class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-green-50 file:text-green-700 hover:file:bg-green-100">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700">Message Template</label>
-                        <textarea id="f-msg" rows="4" placeholder="Hello {name}, this is a test message!" required class="w-full mt-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none"></textarea>
-                    </div>
-                    <button type="submit" id="f-btn" class="w-full bg-purple-600 text-white font-bold py-3 rounded-lg shadow hover:bg-purple-700 transition">Process & Send File</button>
-                </form>
-
-                <div id="progress-container" class="hidden mt-6 p-5 bg-gray-900 rounded-xl shadow-inner">
-                    <div class="flex justify-between text-sm font-bold text-white mb-2">
-                        <span>Transmission Status:</span>
-                        <span id="p-count" class="text-green-400">0/0</span>
-                    </div>
-                    <div class="w-full bg-gray-700 rounded-full h-3 mb-4">
-                        <div id="p-bar" class="bg-green-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
-                    </div>
-                    <ul id="p-logs" class="text-xs space-y-2 h-40 overflow-y-auto text-gray-300 font-mono bg-black p-3 rounded-lg border border-gray-700"></ul>
+                
+                <div id="response-msg" class="hidden text-sm text-center font-medium rounded-lg p-3"></div>
+            </div>
+            
+            <div id="api-guide" class="hidden mt-6 pt-4 border-t border-gray-200">
+                <p class="text-xs text-gray-500 font-semibold mb-2">HOW TO SEND VIA URL (API):</p>
+                <div class="bg-gray-800 text-green-400 text-xs p-3 rounded-lg font-mono overflow-x-auto">
+                    http://localhost:3000/api/send?<br/>number=919876543210&message=Hi
                 </div>
             </div>
         </div>
@@ -87,102 +62,68 @@
 
     <script>
         const socket = io();
-        const badge = document.getElementById('status-badge');
 
+        // UI Elements
+        const statusText = document.getElementById('status-text');
+        const qrContainer = document.getElementById('qr-container');
+        const messageContainer = document.getElementById('message-container');
+        const apiGuide = document.getElementById('api-guide');
+        const qrImage = document.getElementById('qr-image');
+        const qrSpinner = document.getElementById('qr-spinner');
+        const responseMsg = document.getElementById('response-msg');
+        const submitBtn = document.getElementById('submit-btn');
+
+        // Socket Events
         socket.on('qr', (url) => {
-            badge.textContent = "Waiting for Scan"; badge.className = "px-3 py-1 bg-yellow-500 text-xs font-bold rounded-full";
-            document.getElementById('qr-spinner').classList.add('hidden');
-            document.getElementById('qr-image').src = url;
-            document.getElementById('qr-image').classList.remove('hidden');
+            statusText.textContent = "Waiting for QR scan...";
+            qrSpinner.classList.add('hidden');
+            qrImage.src = url;
+            qrImage.classList.remove('hidden');
         });
 
         socket.on('ready', () => {
-            badge.textContent = "Connected"; badge.className = "px-3 py-1 bg-green-500 text-white text-xs font-bold rounded-full";
-            document.getElementById('qr-container').classList.add('hidden');
-            document.getElementById('app-container').classList.remove('hidden');
+            statusText.textContent = "Online";
+            qrContainer.classList.add('hidden');
+            messageContainer.classList.remove('hidden');
+            apiGuide.classList.remove('hidden');
         });
 
-        // Tab System
-        function switchTab(tab) {
-            const tabs = { single: 'singleForm', bulk: 'bulkForm', file: 'fileForm' };
-            const btns = { single: 'tab-single', bulk: 'tab-bulk', file: 'tab-file' };
-            
-            Object.keys(tabs).forEach(k => {
-                document.getElementById(tabs[k]).classList.add('hidden');
-                document.getElementById(btns[k]).className = "flex-1 py-3 text-center text-gray-500 hover:text-green-600 font-semibold border-b border-transparent";
-            });
-
-            document.getElementById(tabs[tab]).classList.remove('hidden');
-            document.getElementById(btns[tab]).className = `flex-1 py-3 text-center font-semibold border-b-2 ${tab === 'file' ? 'text-purple-600 border-purple-600' : (tab === 'bulk' ? 'text-blue-600 border-blue-600' : 'text-green-600 border-green-600')}`;
-        }
-
-        // Shared function for progress UI setup
-        function initProgressUI(total, btnId) {
-            document.getElementById(btnId).disabled = true;
-            document.getElementById(btnId).textContent = "Processing Queue...";
-            document.getElementById('progress-container').classList.remove('hidden');
-            document.getElementById('p-logs').innerHTML = `<li class="text-blue-400">> Initiating transmission sequence...</li>`;
-            document.getElementById('p-bar').style.width = '0%';
-            document.getElementById('p-count').textContent = `0/${total}`;
-        }
-
-        // File Upload Form Submit
-        document.getElementById('fileForm').addEventListener('submit', async (e) => {
+        // Form Submission
+        document.getElementById('sendMessageForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const btn = document.getElementById('f-btn');
-            const fileInput = document.getElementById('f-file').files[0];
-            const message = document.getElementById('f-msg').value;
-
-            btn.disabled = true; btn.textContent = "Uploading...";
-            document.getElementById('progress-container').classList.add('hidden');
-
-            const formData = new FormData();
-            formData.append('file', fileInput);
-            formData.append('message', message);
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+            responseMsg.className = 'hidden text-sm text-center font-medium rounded-lg p-3 mt-4';
 
             try {
-                const res = await fetch('/api/upload-bulk', { method: 'POST', body: formData });
+                const res = await fetch('/api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        number: document.getElementById('phone').value, 
+                        message: document.getElementById('message').value 
+                    })
+                });
+
                 const data = await res.json();
-                if(data.success) {
-                    initProgressUI(data.total, 'f-btn');
+
+                if (data.success) {
+                    responseMsg.textContent = "✅ Message sent successfully!";
+                    responseMsg.classList.add('bg-green-100', 'text-green-800');
+                    document.getElementById('message').value = ''; // clear msg field only
                 } else {
-                    alert(`Error: ${data.error}`);
-                    btn.disabled = false; btn.textContent = "Process & Send File";
+                    responseMsg.textContent = `❌ Error: ${data.error}`;
+                    responseMsg.classList.add('bg-red-100', 'text-red-800');
                 }
-            } catch(e) {
-                alert("Network Error");
-                btn.disabled = false; btn.textContent = "Process & Send File";
+            } catch (err) {
+                responseMsg.textContent = "❌ Network error connecting to localhost.";
+                responseMsg.classList.add('bg-red-100', 'text-red-800');
+            } finally {
+                responseMsg.classList.remove('hidden');
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Message';
             }
-        });
-
-        // Single & Bulk form fetch logic remains similar, routing to respective API endpoints...
-        // [Existing logic for single/bulk form from previous versions, abbreviated for space, ensure they point to correct IDs]
-
-        // Progress Socket Logs
-        socket.on('bulk-progress', (data) => {
-            const logs = document.getElementById('p-logs');
-            document.getElementById('p-count').textContent = `${data.current}/${data.total}`;
-            document.getElementById('p-bar').style.width = `${(data.current / data.total) * 100}%`;
-
-            const li = document.createElement('li');
-            const nameStr = data.name ? `[${data.name}]` : '';
-            if(data.success) {
-                li.innerHTML = `<span class="text-green-400">SUCCESS</span>: Message delivered to ${data.number} ${nameStr}`;
-            } else {
-                li.innerHTML = `<span class="text-red-400">FAILED</span>: ${data.number} - ${data.error}`;
-            }
-            logs.prepend(li);
-        });
-
-        socket.on('bulk-complete', (data) => {
-            document.getElementById('p-logs').prepend(document.createElement('br'));
-            const li = document.createElement('li');
-            li.innerHTML = `<span class="text-yellow-400 text-lg">> TRANSMISSION COMPLETE: ${data.message}</span>`;
-            document.getElementById('p-logs').prepend(li);
-            
-            // Reset buttons
-            document.getElementById('f-btn').disabled = false; document.getElementById('f-btn').textContent = "Process & Send File";
-            document.getElementById('b-btn').disabled = false; document.getElementById('b-btn').textContent = "Start Bulk Sending";
         });
     </script>
 </body>
