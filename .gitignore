@@ -1,0 +1,35 @@
+Dependency directories
+
+node_modules/
+
+Environment variables (Keep your secrets safe!)
+
+.env
+
+WhatsApp Web JS Session & Cache (CRITICAL to ignore)
+
+.wwebjs_auth/
+.wwebjs_cache/
+
+NPM & Yarn debug logs
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+Mac OS specific files
+
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Editor directories and files
+
+.idea/
+.vscode/
+*.suo
+.ntvs
+*.njsproj
+*.sln
+*.sw?
