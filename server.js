@@ -6,9 +6,6 @@ const { Server } = require('socket.io');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const cors = require('cors');
-const multer = require('multer');
-const csv = require('csv-parser');
-const { Readable } = require('stream');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,161 +16,122 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Multer setup for File Uploads (in memory)
-const upload = multer({ storage: multer.memoryStorage() });
-
-// WhatsApp Client
+// WhatsApp Client Initialization
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu'
+        ]
     }
 });
 
 let isClientReady = false;
 
+// Socket.io for Real-time Frontend Updates
 io.on('connection', (socket) => {
-    if (isClientReady) socket.emit('ready', 'WhatsApp is connected!');
+    console.log('Frontend connected');
+    if (isClientReady) {
+        socket.emit('ready', 'WhatsApp is connected!');
+    }
 });
 
 client.on('qr', (qr) => {
+    console.log('QR Code generated. Scan from browser.');
     qrcode.toDataURL(qr, (err, url) => {
         if (!err) io.emit('qr', url);
     });
 });
 
-client.on('authenticated', () => io.emit('authenticated', 'Authenticated!'));
+client.on('authenticated', () => {
+    console.log('Authenticated successfully!');
+    io.emit('authenticated', 'Authenticated!');
+});
+
 client.on('ready', () => {
+    console.log('WhatsApp Client is Ready!');
     isClientReady = true;
     io.emit('ready', 'WhatsApp is Ready!');
 });
-client.on('disconnected', () => {
+
+client.on('disconnected', (reason) => {
+    console.log('Client Disconnected:', reason);
     isClientReady = false;
-    io.emit('disconnected', 'Disconnected. Please scan again.');
+    io.emit('disconnected', 'Disconnected. Please refresh and scan again.');
 });
 
 client.initialize();
 
-// Safe Human Delay (2 to 4 seconds) to avoid WhatsApp ban
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-const getRandomDelay = () => Math.floor(Math.random() * 2000) + 2000;
-
-// 1. Single Message API
-app.post('/api/send-message', async (req, res) => {
+// ==========================================
+// 🚀 API ROUTE 1: DIRECT URL METHOD (GET)
+// Example: http://localhost:3000/api/send?number=919876543210&message=Hi
+// ==========================================
+app.get('/api/send', async (req, res) => {
     try {
-        const { number, message } = req.body;
-        if (!isClientReady) return res.status(503).json({ success: false, error: 'API not ready.' });
-        if (!number || !message) return res.status(400).json({ success: false, error: 'Missing data.' });
+        const { number, message } = req.query;
 
-        const formattedNumber = number.toString().replace(/[-+()\s]/g, '');
+        if (!isClientReady) return res.status(503).json({ success: false, error: 'WhatsApp is not ready. Scan QR first.' });
+        if (!number || !message) return res.status(400).json({ success: false, error: 'Provide both ?number= and &message=' });
+
+        // STRICT VALIDATION: Keep only numbers (removes spaces, +, letters, symbols)
+        const formattedNumber = number.toString().replace(/\D/g, '');
+        if (!formattedNumber || formattedNumber.length < 10) {
+            return res.status(400).json({ success: false, error: 'Invalid phone number format.' });
+        }
+
         const chatId = `${formattedNumber}@c.us`;
 
         const isRegistered = await client.isRegisteredUser(chatId);
-        if (!isRegistered) return res.status(404).json({ success: false, error: 'Not registered on WA.' });
+        if (!isRegistered) return res.status(404).json({ success: false, error: `Number ${formattedNumber} is not on WhatsApp.` });
+
+        await client.sendMessage(chatId, message);
+        res.status(200).json({ success: true, message: `Message sent successfully to ${formattedNumber}!`, sent_text: message });
+
+    } catch (error) {
+        console.error('URL API Error:', error.message);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// 🚀 API ROUTE 2: HTML FORM METHOD (POST)
+// ==========================================
+app.post('/api/send-message', async (req, res) => {
+    try {
+        const { number, message } = req.body;
+
+        if (!isClientReady) return res.status(503).json({ success: false, error: 'WhatsApp is not ready.' });
+        if (!number || !message) return res.status(400).json({ success: false, error: 'Number and message are required.' });
+
+        // STRICT VALIDATION: Keep only numbers (removes spaces, +, letters, symbols)
+        const formattedNumber = number.toString().replace(/\D/g, '');
+        if (!formattedNumber || formattedNumber.length < 10) {
+            return res.status(400).json({ success: false, error: 'Invalid phone number format.' });
+        }
+
+        const chatId = `${formattedNumber}@c.us`;
+
+        const isRegistered = await client.isRegisteredUser(chatId);
+        if (!isRegistered) return res.status(404).json({ success: false, error: `Number ${formattedNumber} is not on WhatsApp.` });
 
         await client.sendMessage(chatId, message);
         res.status(200).json({ success: true, message: 'Message sent!' });
+
     } catch (error) {
+        console.error('Form API Error:', error.message);
         res.status(500).json({ success: false, error: error.message });
     }
 });
 
-// 2. Bulk Message API (Text/Manual Entry)
-app.post('/api/send-bulk', async (req, res) => {
-    try {
-        const { numbers, message } = req.body;
-        if (!isClientReady) return res.status(503).json({ success: false, error: 'API not ready.' });
-        
-        const numberArray = numbers.split(/[,\n]+/).map(n => n.trim()).filter(n => n !== '');
-        if (numberArray.length === 0) return res.status(400).json({ success: false, error: 'No valid numbers.' });
-
-        res.status(200).json({ success: true, total: numberArray.length, message: 'Processing started!' });
-        processBulkMessages(numberArray.map(n => ({ phone_number: n })), message);
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
+// Start Server
+server.listen(PORT, () => {
+    console.log(`Server is live at http://localhost:${PORT}`);
 });
-
-// 3. NEW: File Upload API (CSV/JSON)
-app.post('/api/upload-bulk', upload.single('file'), async (req, res) => {
-    try {
-        if (!isClientReady) return res.status(503).json({ success: false, error: 'API not ready.' });
-        if (!req.file) return res.status(400).json({ success: false, error: 'No file uploaded.' });
-        
-        const messageTemplate = req.body.message;
-        if (!messageTemplate) return res.status(400).json({ success: false, error: 'Message is required.' });
-
-        const fileExt = path.extname(req.file.originalname).toLowerCase();
-        let contacts = [];
-
-        if (fileExt === '.json') {
-            const data = JSON.parse(req.file.buffer.toString());
-            contacts = Array.isArray(data) ? data : [];
-        } else if (fileExt === '.csv') {
-            const stream = Readable.from(req.file.buffer.toString());
-            await new Promise((resolve, reject) => {
-                stream.pipe(csv())
-                    .on('data', (row) => contacts.push(row))
-                    .on('end', resolve)
-                    .on('error', reject);
-            });
-        } else {
-            return res.status(400).json({ success: false, error: 'Only CSV or JSON files allowed.' });
-        }
-
-        // Filter valid contacts (Require phone_number column)
-        const validContacts = contacts.filter(c => c.phone_number || c.phone || c.number);
-        
-        if (validContacts.length === 0) {
-            return res.status(400).json({ success: false, error: 'No valid phone numbers found in file. Ensure column is named phone_number.' });
-        }
-
-        res.status(200).json({ success: true, total: validContacts.length, message: 'File processing started!' });
-        processBulkMessages(validContacts, messageTemplate);
-
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: 'Error processing file.' });
-    }
-});
-
-// Background Processor with Safety Delays
-async function processBulkMessages(contacts, messageTemplate) {
-    for (let i = 0; i < contacts.length; i++) {
-        const contact = contacts[i];
-        // Accommodate standard names or exact CSV headers
-        const rawNumber = contact.phone_number || contact.phone || contact.number || '';
-        const name = contact.saved_name || contact.name || 'User'; 
-        
-        if (!rawNumber) continue;
-
-        let num = rawNumber.toString().replace(/[-+()\s]/g, '');
-        let chatId = `${num}@c.us`;
-        
-        // Dynamic variable replacement
-        let finalMessage = messageTemplate.replace(/{name}/gi, name);
-
-        try {
-            const isRegistered = await client.isRegisteredUser(chatId);
-            if (isRegistered) {
-                await client.sendMessage(chatId, finalMessage);
-                io.emit('bulk-progress', { success: true, number: num, name, current: i + 1, total: contacts.length });
-            } else {
-                io.emit('bulk-progress', { success: false, number: num, error: 'Not on WA', current: i + 1, total: contacts.length });
-            }
-        } catch (err) {
-            io.emit('bulk-progress', { success: false, number: num, error: err.message, current: i + 1, total: contacts.length });
-        }
-
-        // Apply delay unless it's the last message
-        if (i < contacts.length - 1) {
-            await delay(getRandomDelay()); 
-        }
-    }
-    io.emit('bulk-complete', { message: 'All file messages processed successfully!' });
-}
-
-server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
